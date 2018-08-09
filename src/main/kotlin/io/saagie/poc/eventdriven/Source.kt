@@ -4,14 +4,14 @@ import arrow.core.Either
 import arrow.core.Tuple2
 
 sealed class RootSource <S,E> {
-    data class PureSource<S, E>(val value: S) : RootSource<S,E>()
-    data class NewSource<S, E>(val event: GeneratorEvent<S>) : RootSource<S,E>()
-    data class DelegateSource<S, E>(val id: Int): RootSource<S, E>()
+    data class Pure<S, E>(val value: S) : RootSource<S,E>()
+    data class CreationEvent<S, E>(val event: GeneratorEvent<S>) : RootSource<S,E>()
+    data class Repository<S, E>(val id: Int): RootSource<S, E>()
 
     companion object {
-        fun <S, E> pure(value: S): PureSource<S, E> = PureSource(value)
-        fun <S, E> new(event: GeneratorEvent<S>): NewSource<S, E> = NewSource(event)
-        fun <S, E> delegate(id: Int): DelegateSource<S, E> = DelegateSource(id)
+        fun <S, E> pure(value: S): Pure<S, E> = Pure(value)
+        fun <S, E> creationEvent(event: GeneratorEvent<S>): CreationEvent<S, E> = CreationEvent(event)
+        fun <S, E> repository(id: Int): Repository<S, E> = Repository(id)
     }
 }
 

@@ -2,8 +2,8 @@ package io.saagie.poc.eventdriven
 
 import arrow.core.*
 import io.saagie.poc.eventdriven.Turtle.Companion.move
-import io.saagie.poc.eventdriven.RootSource.Companion.new
-import io.saagie.poc.eventdriven.RootSource.Companion.delegate
+import io.saagie.poc.eventdriven.RootSource.Companion.creationEvent
+import io.saagie.poc.eventdriven.RootSource.Companion.repository
 
 val MAX = 10
 
@@ -55,7 +55,7 @@ fun main(args: Array<String>) {
 
     val repository = TurtleRepository(Turtle.Companion::defautlHandler)
 
-    val aggregate = Source<Turtle, TurtleEvent, String>(new(TurtleEvent.TurtleCreated(id = 0, x = 0, y = 0)))
+    val aggregate = Source<Turtle, TurtleEvent, String>(creationEvent(TurtleEvent.TurtleCreated(id = 0, x = 0, y = 0)))
             .andThen(move(2, 2))
             .andThen(move(2, 2))
 
@@ -67,5 +67,5 @@ fun main(args: Array<String>) {
             .andThen(move(2, 2))
             .andThen(move(2, 2))
             .andThen(move(1, 1))
-    println(repository.chain(eventsSource)(delegate(0)))
+    println(repository.chain(eventsSource)(repository(0)))
 }

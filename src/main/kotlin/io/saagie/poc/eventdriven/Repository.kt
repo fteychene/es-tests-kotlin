@@ -29,9 +29,9 @@ abstract class Repository<S, E>(
 
     fun <Ex> chain(events: EventSource<S, E, Ex>): (RootSource<S, E>) -> SourceResult<S, E, Ex> = {
         when (it) {
-            is RootSource.PureSource<S, E> -> apply(it.value, events)
-            is RootSource.NewSource<S, E> -> apply(it.event.create(), events, (it.event as E).some())
-            is RootSource.DelegateSource<S, E> -> apply(get(it.id), events)
+            is RootSource.Pure<S, E> -> apply(it.value, events)
+            is RootSource.CreationEvent<S, E> -> apply(it.event.create(), events, (it.event as E).some())
+            is RootSource.Repository<S, E> -> apply(get(it.id), events)
         }
     }
 
