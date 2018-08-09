@@ -3,8 +3,9 @@ package io.saagie.poc.eventdriven
 import arrow.core.*
 import io.saagie.poc.eventdriven.Turtle.Companion.move
 import io.saagie.poc.eventdriven.RootSource.Companion.new
+import io.saagie.poc.eventdriven.RootSource.Companion.delegate
 
-val MAX = 5
+val MAX = 10
 
 data class Turtle(
         val id: Int,
@@ -32,13 +33,20 @@ sealed class TurtleEvent() {
     data class TurtleCreated(val id: Int, val x: Int, val y: Int) : TurtleEvent(), GeneratorEvent<Turtle> {
         override fun create(): Turtle = Turtle(id, x toT y)
     }
+
     data class TurtleMoved(val id: Int, val vector: Tuple2<Int, Int>) : TurtleEvent()
 }
 
 
-class TurtleRepository<E>(handler: Handler<Turtle, E>) : Repository<Turtle, E>(handler) {
+class TurtleRepository<E>(
+        handler: Handler<Turtle, E>,
+        var storage: List<Turtle> = listOf()) : Repository<Turtle, E>(handler) {
 
-    override fun get(id: Int): Turtle = Turtle(id=id, pos = 0 toT 0)
+    override fun saveState(state: Turtle) {
+        storage = storage + state
+    }
+
+    override fun get(id: Int): Turtle = storage.filter { id.equals(it.id) }.first()
 
 }
 
@@ -50,14 +58,14 @@ fun main(args: Array<String>) {
     val aggregate = Source<Turtle, TurtleEvent, String>(new(TurtleEvent.TurtleCreated(id = 0, x = 0, y = 0)))
             .andThen(move(2, 2))
             .andThen(move(2, 2))
-            .andThen(move(0, 1))
 
-    println(repository.execute(aggregate))
+    println(repository.executeAndSave(aggregate))
 
 
     val eventsSource = EventSource<Turtle, TurtleEvent, String>()
             .andThen(move(2, 2))
             .andThen(move(2, 2))
-            .andThen(move(0, 2))
-    println(repository.chain(eventsSource)(new(TurtleEvent.TurtleCreated(id = 0, x = 0, y = 0))))
+            .andThen(move(2, 2))
+            .andThen(move(1, 1))
+    println(repository.chain(eventsSource)(delegate(0)))
 }

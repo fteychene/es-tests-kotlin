@@ -11,6 +11,8 @@ abstract class Repository<S, E>(
 
     abstract fun get(id: Int): S
 
+    abstract fun saveState(state: S)
+
     private fun <Ex> apply(state: S, source: EventSource<S, E, Ex>, initialEvents: Option<E> = None): SourceResult<S, E, Ex> =
             source.events.foldRight<Event<S, E, Ex>, SourceResult<S, E, Ex>>(
                     Either.right(state toT initialEvents.map { listOf(it) }.getOrElse { listOf() })
@@ -22,6 +24,8 @@ abstract class Repository<S, E>(
             }
 
     fun <Ex> execute(source: Source<S, E, Ex>): SourceResult<S, E, Ex> = chain(source.events)(source.source)
+
+    fun <Ex> executeAndSave(source: Source<S, E, Ex>): SourceResult<S, E, Ex> = execute(source).flatMap { saveState(it.a); it.right() }
 
     fun <Ex> chain(events: EventSource<S, E, Ex>): (RootSource<S, E>) -> SourceResult<S, E, Ex> = {
         when (it) {
