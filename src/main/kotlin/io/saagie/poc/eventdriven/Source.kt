@@ -1,40 +1,22 @@
 package io.saagie.poc.eventdriven
 
-import arrow.core.Either
-import arrow.core.Tuple2
+import arrow.core.*
+import arrow.instance
+import arrow.typeclasses.Semigroup
 
-sealed class RootSource <S,E> {
-    data class Pure<S, E>(val value: S) : RootSource<S,E>()
-    data class CreationEvent<S, E>(val event: GeneratorEvent<S>) : RootSource<S,E>()
-    data class Repository<S, E>(val id: Int): RootSource<S, E>()
+data class EventSource<S, A : Either<Any, Any>>(val run: (S) -> A,
+                                                val next: Option<EventSource<S, A>> = None) {
 
-    companion object {
-        fun <S, E> pure(value: S): Pure<S, E> = Pure(value)
-        fun <S, E> creationEvent(event: GeneratorEvent<S>): CreationEvent<S, E> = CreationEvent(event)
-        fun <S, E> repository(id: Int): Repository<S, E> = Repository(id)
-    }
+    fun toList(): List<(S) -> A> = listOf(run) + next.map({ it.toList() }).getOrElse({ listOf() })
+
+    companion object
 }
 
-typealias Event<S, E, Ex> = (S) -> Either<Ex, E>
-interface GeneratorEvent<S> {
-    fun create():S
+fun <S, A : Either<Any, Any>> ((S) -> A).toEventSource() = EventSource(this)
+
+@instance(EventSource::class)
+interface EventSourceSemigroupInstance<S, A : Either<Any, Any>> : Semigroup<EventSource<S, A>> {
+    override fun EventSource<S, A>.combine(b: EventSource<S, A>): EventSource<S, A> = b.copy(next = Some(this))
 }
 
-data class Source<S, E, Ex>(
-        val source: RootSource<S,E>,
-        val events: EventSource<S, E, Ex> = EventSource()) {
-
-    fun andThen(event: Event<S, E, Ex>) = Source(source, events.andThen(event))
-
-    fun andThen(events: EventSource<S, E, Ex>) = Source(source, events.andThen(events))
-}
-
-data class EventSource<S, E, Ex>(
-        val events: List<Event<S, E, Ex>> = listOf()
-) {
-    fun andThen(event: Event<S, E, Ex>) = EventSource(events + event)
-
-    fun andThen(source: EventSource<S, E, Ex>) = EventSource(events + source.events)
-}
-
-typealias SourceResult<S, E, Ex> = Either<Ex, Tuple2<S, List<E>>>
+inline fun <S, A : Either<Any, Any>> chainEventSources(block: EventSourceSemigroupInstance<S, A>.() -> EventSource<S, A>): EventSource<S, A> = EventSource.semigroup<S, A>().run(block)

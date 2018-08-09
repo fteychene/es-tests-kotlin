@@ -2,37 +2,18 @@ package io.saagie.poc.eventdriven
 
 import arrow.core.*
 
+typealias Aggregate<S, E> = (S, E) -> S
 
-typealias Handler<S, E> = (S, E) -> S
 
-abstract class Repository<S, E>(
-        val handler: Handler<S, E>
-) {
+class Repository<S, E : Any, Ex : Any>(val aggregate: Aggregate<S, E>) {
 
-    abstract fun get(id: Int): S
-
-    abstract fun saveState(state: S)
-
-    private fun <Ex> apply(state: S, source: EventSource<S, E, Ex>, initialEvents: Option<E> = None): SourceResult<S, E, Ex> =
-            source.events.foldRight<Event<S, E, Ex>, SourceResult<S, E, Ex>>(
-                    Either.right(state toT initialEvents.map { listOf(it) }.getOrElse { listOf() })
-            ) { event, acc ->
+    fun <A : Either<Ex, E>> run(state: S, source: EventSource<S, A>): Either<Ex, Tuple2<S, List<E>>> =
+            source.toList().foldRight<(S) -> A, Either<Ex, Tuple2<S, List<E>>>>(
+                    (state toT listOf<E>()).right()
+            ) { source, acc ->
                 acc.flatMap { (state, pastEvents) ->
-                    event.invoke(state)
-                            .map { handler.invoke(state, it) toT pastEvents + it }
+                    source.invoke(state)
+                            .map { event -> aggregate.invoke(state, event) toT pastEvents + event }
                 }
             }
-
-    fun <Ex> execute(source: Source<S, E, Ex>): SourceResult<S, E, Ex> = chain(source.events)(source.source)
-
-    fun <Ex> executeAndSave(source: Source<S, E, Ex>): SourceResult<S, E, Ex> = execute(source).flatMap { saveState(it.a); it.right() }
-
-    fun <Ex> chain(events: EventSource<S, E, Ex>): (RootSource<S, E>) -> SourceResult<S, E, Ex> = {
-        when (it) {
-            is RootSource.Pure<S, E> -> apply(it.value, events)
-            is RootSource.CreationEvent<S, E> -> apply(it.event.create(), events, (it.event as E).some())
-            is RootSource.Repository<S, E> -> apply(get(it.id), events)
-        }
-    }
-
 }
