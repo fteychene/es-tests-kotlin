@@ -16,7 +16,10 @@ fun <S, A : Either<Any, Any>> ((S) -> A).toEventSource() = EventSource(this)
 
 @instance(EventSource::class)
 interface EventSourceSemigroupInstance<S, A : Either<Any, Any>> : Semigroup<EventSource<S, A>> {
-    override fun EventSource<S, A>.combine(b: EventSource<S, A>): EventSource<S, A> = b.copy(next = Some(this))
+    override fun EventSource<S, A>.combine(b: EventSource<S, A>): EventSource<S, A> = when(this.next) {
+        is Some -> this.next.t.combine(b)
+        is None -> b.copy(next = Some(this))
+    }
 }
 
 inline fun <S, A : Either<Any, Any>> chainEventSources(block: EventSourceSemigroupInstance<S, A>.() -> EventSource<S, A>): EventSource<S, A> = EventSource.semigroup<S, A>().run(block)
